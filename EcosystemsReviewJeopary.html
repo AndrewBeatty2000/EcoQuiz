@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Jeopardy – Ecosystems Review</title>
+<style>
+  :root{
+    --bg:#0b1021; --panel:#121942; --card:#1a237e;
+    --accent:#ffd54f; --accent2:#64b5f6; --good:#66bb6a; --bad:#ef5350;
+    --text:#e8eaf6;
+  }
+  *{box-sizing:border-box}
+  body{margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial; background:radial-gradient(1000px 600px at 50% -200px,#1e2a7a 0%,#0b1021 60%); color:var(--text)}
+  header{padding:16px 20px; display:flex; align-items:center; justify-content:space-between; gap:12px; background:linear-gradient(180deg,rgba(255,255,255,.04),transparent)}
+  h1{margin:0; font-size:clamp(20px,3vw,28px); letter-spacing:.5px}
+  .controls{display:flex; gap:8px; flex-wrap:wrap}
+  button, select, input{background:var(--panel); color:var(--text); border:1px solid rgba(255,255,255,.1); padding:10px 12px; border-radius:12px; font-weight:600}
+  button:hover{filter:brightness(1.1)}
+  button:active{transform:translateY(1px)}
+  main{padding:16px; max-width:1200px; margin:auto}
+  .board{display:grid; grid-template-columns:repeat(6,1fr); gap:10px}
+  .category{background:linear-gradient(180deg,#1a237e,#0d154f); border-radius:14px; padding:10px; text-align:center; font-weight:800; text-transform:uppercase; min-height:70px; display:flex; align-items:center; justify-content:center; border:1px solid rgba(255,255,255,.15)}
+  .tile{background:linear-gradient(180deg,#152064,#0d154f); border-radius:14px; height:90px; display:flex; align-items:center; justify-content:center; font-size:28px; font-weight:900; color:var(--accent); border:1px solid rgba(255,255,255,.15); cursor:pointer}
+  .tile.used{opacity:.25; text-decoration:line-through}
+  .modal{position:fixed; inset:0; display:none; place-items:center; background:rgba(0,0,0,.65); padding:20px}
+  .modal.show{display:grid}
+  .card{background:linear-gradient(180deg,#0f1540,#0b1028); border:1px solid rgba(255,255,255,.12); border-radius:18px; max-width:900px; width:min(900px,95vw); overflow:hidden; box-shadow:0 20px 70px rgba(0,0,0,.5)}
+  .qhead{display:flex; justify-content:space-between; align-items:center; gap:8px; padding:12px 14px; border-bottom:1px solid rgba(255,255,255,.08)}
+  .qbody{padding:24px; font-size:clamp(18px,2.2vw,28px); line-height:1.35}
+  .qfooter{display:flex; justify-content:space-between; align-items:center; gap:8px; padding:12px 14px; border-top:1px solid rgba(255,255,255,.08)}
+  .value{font-weight:900; color:var(--accent)}
+  .answer{display:none; margin-top:16px; padding:16px; border:1px dashed rgba(255,255,255,.25); border-radius:12px; background:rgba(255,255,255,.04)}
+  .answer.show{display:block}
+  .teams{display:flex; gap:10px; flex-wrap:wrap}
+  .team{background:var(--panel); padding:10px 12px; border-radius:12px; display:flex; align-items:center; gap:8px}
+  .team input{width:100px}
+  .pill{padding:6px 10px; border-radius:999px; font-weight:800}
+  .good{background:rgba(102,187,106,.15); border:1px solid rgba(102,187,106,.5)}
+  .bad{background:rgba(239,83,80,.15); border:1px solid rgba(239,83,80,.5)}
+  .small{opacity:.8; font-size:12px}
+  .help{opacity:.75}
+  .foot{max-width:1200px; margin:16px auto; padding:0 16px; font-size:12px; opacity:.7}
+  .sr{position:absolute; height:1px; width:1px; overflow:hidden; clip:rect(1px,1px,1px,1px)}
+  @media (max-width:900px){ .board{grid-template-columns:repeat(3,1fr)} }
+</style>
+</head>
+<body>
+<header>
+  <h1>Jeopardy – Ecosystems Review (Weeks 1–3)</h1>
+  <div class="controls">
+    <button id="fsBtn" title="Toggle fullscreen">Fullscreen</button>
+    <button id="resetBtn" title="Reset board & scores">Reset</button>
+    <label class="help small"><input type="checkbox" id="ddCheck"> Add one Daily Double</label>
+    <select id="teamCount" title="Teams">
+      <option value="0">No Teams</option>
+      <option value="2" selected>2 Teams</option>
+      <option value="3">3 Teams</option>
+      <option value="4">4 Teams</option>
+    </select>
+  </div>
+</header>
+<main>
+  <section class="teams" id="teams"></section>
+  <section class="board" id="board" aria-label="Jeopardy board"></section>
+</main>
+<div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="qTitle">
+  <div class="card">
+    <div class="qhead">
+      <div><strong id="qCat">Category</strong> • <span class="value" id="qVal">$100</span></div>
+      <div class="help small">Press <kbd>Space</kbd> to reveal, <kbd>Enter</kbd> to award, <kbd>Esc</kbd> to close</div>
+    </div>
+    <div class="qbody">
+      <div id="qText">Question text…</div>
+      <div class="answer" id="qAnswer" aria-live="polite"><strong>Answer:</strong> <span id="aText"></span></div>
+    </div>
+    <div class="qfooter">
+      <div class="teams" id="award"></div>
+      <div>
+        <button id="revealBtn">Reveal Answer</button>
+        <button id="closeBtn">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+<p class="foot help">Content adapted from classroom slides (Weeks 1–3). Use responsibly for in‑class review. Keyboard: Space = reveal, Enter = award (+)
+, Shift+Enter = deduct (−), Esc = close.</p>
+<script>
+// ======= DATA =======
+const categories = [
+  {
+    name: "Ecosystems & Components",
+    q: [
+      {v:100, q:"What is an ecosystem?", a:"A community of living (biotic) and non‑living (abiotic) things interacting in a place."},
+      {v:200, q:"Name two Ontario ecosystems.", a:"Examples include forests (boreal/deciduous), lakes & rivers, wetlands, grasslands, and urban ecosystems."},
+      {v:300, q:"Give one biotic and one abiotic factor and how they interact.", a:"e.g., Plants (biotic) need sunlight and water (abiotic) to grow."},
+      {v:400, q:"Define producer, consumer, and decomposer.", a:"Producers make food (usually via photosynthesis), consumers eat other organisms, decomposers break down dead matter."},
+      {v:500, q:"Explain one way soil health influences an ecosystem.", a:"Soil nutrients and structure affect plant growth, which affects herbivores and higher trophic levels."}
+    ]
+  },
+  {
+    name: "Indigenous Perspectives",
+    q: [
+      {v:100, q:"In Indigenous worldviews, how are humans related to nature?", a:"Humans are part of nature and connected to all living things, with responsibilities to care for the Earth."},
+      {v:200, q:"What does the idea of ‘Mother Earth’ emphasize?", a:"That Earth provides for all beings and humans should be caretakers, not exploiters."},
+      {v:300, q:"Give one example of Traditional Ecological Knowledge (TEK) in practice.", a:"Seasonal hunting/harvesting guided by migrations and plant cycles; using the whole animal to minimize waste."},
+      {v:400, q:"How can combining TEK and science help ecosystems?", a:"They both recognize interconnections; together they inform better conservation and sustainability decisions."},
+      {v:500, q:"Describe the ‘Three Sisters’ and why it’s sustainable.", a:"Corn, beans, squash grown together: beans fix nitrogen, corn provides structure, squash conserves moisture & suppresses weeds."}
+    ]
+  },
+  {
+    name: "Food Chains & Webs",
+    q: [
+      {v:100, q:"Where does a food chain usually start?", a:"With a producer (typically a plant)."},
+      {v:200, q:"Why are food webs more realistic than single chains?", a:"Most organisms eat multiple foods; webs show many interconnected chains."},
+      {v:300, q:"Create a simple Ontario food chain.", a:"e.g., Grass → Rabbit → Fox → Decomposer."},
+      {v:400, q:"What happens to a web if one key species disappears?", a:"Energy pathways shift; populations may rise or crash, potentially destabilizing the web."},
+      {v:500, q:"How might climate change disrupt a local food web?", a:"Shifts timing of growth/migration, creating mismatches in food availability across trophic levels."}
+    ]
+  },
+  {
+    name: "Energy & Trophic Levels",
+    q: [
+      {v:100, q:"What percent of energy typically passes to the next trophic level?", a:"About 10%."},
+      {v:200, q:"Place these in order: primary consumer, producer, secondary consumer.", a:"Producer → Primary consumer → Secondary consumer."},
+      {v:300, q:"Why are there fewer top predators than prey?", a:"Energy decreases up the pyramid, supporting fewer organisms at higher levels."},
+      {v:400, q:"Identify trophic levels in Grass → Rabbit → Fox.", a:"Grass = producer (1st); Rabbit = primary consumer (2nd); Fox = secondary consumer (3rd)."},
+      {v:500, q:"Give one human activity that can alter energy flow.", a:"Overfishing, habitat loss, pollution—each can reduce producers/consumers and break energy pathways."}
+    ]
+  },
+  {
+    name: "Nutrient Cycling",
+    q: [
+      {v:100, q:"What is nutrient cycling?", a:"Movement of elements (e.g., carbon, nitrogen) through air, water, soil, and living things."},
+      {v:200, q:"Name one key step in the carbon cycle.", a:"Plants take in CO₂ for photosynthesis; animals respire CO₂; decomposers return carbon to soil/air."},
+      {v:300, q:"What role do bacteria play in the nitrogen cycle?", a:"They convert atmospheric nitrogen into usable forms for plants (nitrogen fixation)."},
+      {v:400, q:"Give a backyard example that supports cycling.", a:"Composting: decomposers break down leaves/food scraps, returning nutrients to soil for plants."},
+      {v:500, q:"How does Three Sisters support soil nutrients?", a:"Beans host nitrogen‑fixing bacteria; diverse planting reduces depletion and improves soil health."}
+    ]
+  },
+  {
+    name: "Symbiosis & Impacts",
+    q: [
+      {v:100, q:"Define symbiosis and list the three main types.", a:"Close interspecies relationship: mutualism, commensalism, parasitism."},
+      {v:200, q:"Give one mutualism example.", a:"Bees & flowers (pollination for food); clownfish & anemones; gut microbes & humans."},
+      {v:300, q:"What’s commensalism? Give an example.", a:"One benefits, the other unaffected—e.g., remora fish hitching rides on sharks."},
+      {v:400, q:"Name an invasive species that disrupts relationships in the Great Lakes.", a:"Zebra mussels—outcompete/attach to natives and alter habitats."},
+      {v:500, q:"Connect symbiosis to nutrient cycling with an example.", a:"Legumes with nitrogen‑fixing bacteria enrich soil, influencing plant growth and food webs."}
+    ]
+  }
+];
+
+// ======= STATE =======
+let state = { scores: [], used: new Set(), dailyDouble: null };
+
+// ======= UI BUILD =======
+const boardEl = document.getElementById('board');
+const teamsEl = document.getElementById('teams');
+const awardEl = document.getElementById('award');
+const teamCountSel = document.getElementById('teamCount');
+
+function buildBoard(){
+  boardEl.innerHTML = '';
+  // headers
+  categories.forEach(c=>{
+    const h = document.createElement('div');
+    h.className='category'; h.textContent=c.name; boardEl.appendChild(h);
+  });
+  // tiles (assume 5 rows)
+  const rows = 5;
+  for(let r=0;r<rows;r++){
+    categories.forEach((c,ci)=>{
+      const t = document.createElement('button');
+      const q = c.q[r];
+      t.className='tile';
+      t.textContent = `$${q.v}`;
+      t.dataset.ci = ci; t.dataset.ri = r;
+      const key = `${ci}-${r}`;
+      if(state.used.has(key)) t.classList.add('used');
+      t.addEventListener('click',()=>openQuestion(ci,r));
+      boardEl.appendChild(t);
+    });
+  }
+}
+
+function buildTeams(){
+  const n = +teamCountSel.value;
+  state.scores = Array.from({length:n}, (_,i)=>state.scores[i] ?? 0);
+  teamsEl.innerHTML = '';
+  for(let i=0;i<n;i++){
+    const box = document.createElement('div');
+    box.className='team';
+    box.innerHTML = `<span class="pill" style="background:rgba(100,181,246,.15);border:1px solid rgba(100,181,246,.5)">Team ${i+1}</span>
+      <strong class="score">${state.scores[i]}</strong>
+      <button data-delta="-100">−100</button>
+      <button data-delta="100">+100</button>`;
+    box.querySelectorAll('button').forEach(btn=>{
+      btn.addEventListener('click',()=>{
+        const delta = +btn.dataset.delta;
+        state.scores[i]+=delta; renderScores();
+      });
+    });
+    teamsEl.appendChild(box);
+  }
+}
+
+function renderScores(){
+  document.querySelectorAll('.team .score').forEach((el,i)=>el.textContent=state.scores[i]);
+}
+
+// ======= MODAL =======
+const modal = document.getElementById('modal');
+const qCat = document.getElementById('qCat');
+const qVal = document.getElementById('qVal');
+const qText = document.getElementById('qText');
+const qAnswer = document.getElementById('qAnswer');
+const aText = document.getElementById('aText');
+const revealBtn = document.getElementById('revealBtn');
+const closeBtn = document.getElementById('closeBtn');
+const ddCheck = document.getElementById('ddCheck');
+
+let current = null; // {ci,ri}
+
+function openQuestion(ci,ri){
+  const key = `${ci}-${ri}`;
+  if(state.used.has(key)) return;
+  const cat = categories[ci];
+  const item = cat.q[ri];
+  current = {ci,ri};
+  qCat.textContent = cat.name;
+  qVal.textContent = `$${item.v}`;
+  qText.textContent = (state.dailyDouble===key) ? `DAILY DOUBLE! Wager up to your team's score.\nQuestion: ${item.q}` : item.q;
+  aText.textContent = item.a;
+  qAnswer.classList.remove('show');
+  buildAward(item.v);
+  modal.classList.add('show');
+}
+
+function buildAward(value){
+  awardEl.innerHTML='';
+  const n = state.scores.length;
+  for(let i=0;i<n;i++){
+    const wrap = document.createElement('div');
+    wrap.className='team';
+    const add = document.createElement('button'); add.className='good'; add.textContent=`Team ${i+1} +${value}`;
+    const sub = document.createElement('button'); sub.className='bad'; sub.textContent=`Team ${i+1} −${value}`;
+    add.addEventListener('click',()=>{state.scores[i]+=value; renderScores(); markUsed(); closeModal();});
+    sub.addEventListener('click',()=>{state.scores[i]-=value; renderScores(); markUsed(); closeModal();});
+    wrap.appendChild(add); wrap.appendChild(sub); awardEl.appendChild(wrap);
+  }
+}
+
+function markUsed(){
+  if(!current) return;
+  const key = `${current.ci}-${current.ri}`;
+  state.used.add(key);
+  const tile = [...document.querySelectorAll('.tile')].find(t=>t.dataset.ci==current.ci && t.dataset.ri==current.ri);
+  if(tile) tile.classList.add('used');
+}
+
+function closeModal(){ modal.classList.remove('show'); current=null; }
+
+revealBtn.addEventListener('click',()=>qAnswer.classList.toggle('show'));
+closeBtn.addEventListener('click',closeModal);
+
+// keyboard shortcuts inside modal
+window.addEventListener('keydown',e=>{
+  if(!modal.classList.contains('show')) return;
+  const cat = categories[current?.ci||0];
+  const item = cat?.q[current?.ri||0];
+  const val = item?.v || 0;
+  const n = state.scores.length;
+  if(e.code==='Space'){ e.preventDefault(); qAnswer.classList.toggle('show'); }
+  if(e.code==='Enter'){
+    e.preventDefault(); if(n>0){ state.scores[0]+=val; renderScores(); } markUsed(); closeModal();
+  }
+  if(e.shiftKey && e.code==='Enter'){
+    e.preventDefault(); if(n>0){ state.scores[0]-=val; renderScores(); } markUsed(); closeModal();
+  }
+  if(e.code==='Escape'){ e.preventDefault(); closeModal(); }
+});
+
+// ======= FULLSCREEN & RESET =======
+const fsBtn = document.getElementById('fsBtn');
+fsBtn.addEventListener('click',()=>{
+  if(document.fullscreenElement){ document.exitFullscreen(); }
+  else{ document.documentElement.requestFullscreen(); }
+});
+
+document.getElementById('resetBtn').addEventListener('click',()=>{
+  if(!confirm('Reset the board and scores?')) return;
+  state.used.clear();
+  const n = state.scores.length; state.scores = Array.from({length:n},()=>0);
+  state.dailyDouble = null; ddCheck.checked=false;
+  buildBoard(); buildTeams(); renderScores();
+});
+
+teamCountSel.addEventListener('change',()=>{ buildTeams(); renderScores(); });
+
+ddCheck.addEventListener('change',()=>{
+  state.dailyDouble = ddCheck.checked ? pickDailyDouble() : null;
+});
+
+function pickDailyDouble(){
+  const allKeys=[]; for(let ci=0;ci<categories.length;ci++){ for(let ri=0;ri<5;ri++){ allKeys.push(`${ci}-${ri}`)} }
+  return allKeys[Math.floor(Math.random()*allKeys.length)];
+}
+
+// ======= INIT =======
+(function init(){
+  buildBoard(); buildTeams(); renderScores();
+})();
+</script>
+</body>
+</html>
